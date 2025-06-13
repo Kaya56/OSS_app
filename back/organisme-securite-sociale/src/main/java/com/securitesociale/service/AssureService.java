@@ -222,7 +222,7 @@ public class AssureService {
             throw new ValidationException("La date de naissance est obligatoire");
         }
 
-        if (assure.getGenre() == null || !assure.getGenre().matches("^(M|F|AUTRE)$")) {
+        if (assure.getGenre() == null) {
             throw new ValidationException("Le genre doit être M, F ou AUTRE");
         }
 

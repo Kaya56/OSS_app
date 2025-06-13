@@ -1,10 +1,13 @@
 package com.securitesociale.entity;
 
+import com.securitesociale.entity.enums.Genre;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
+
 import java.time.LocalDate;
-import java.util.Objects;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "personnes")
@@ -12,7 +15,7 @@ import java.util.Objects;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class Personne {
 
     @Id
@@ -21,42 +24,48 @@ public class Personne {
 
     @NotBlank(message = "Le nom est obligatoire")
     @Size(max = 100, message = "Le nom ne peut pas dépasser 100 caractères")
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false)
     private String nom;
+
+    @NotBlank(message = "Le prénom est obligatoire")
+    @Size(max = 100, message = "Le prénom ne peut pas dépasser 100 caractères")
+    @Column(nullable = false)
+    private String prenom;
 
     @NotNull(message = "La date de naissance est obligatoire")
     @Past(message = "La date de naissance doit être dans le passé")
-    @Column(name = "date_naissance", nullable = false)
+    @Column(nullable = false)
     private LocalDate dateNaissance;
 
-    @NotBlank(message = "Le genre est obligatoire")
-    @Pattern(regexp = "^(M|F|AUTRE)$", message = "Le genre doit être M, F ou AUTRE")
-    @Column(nullable = false, length = 10)
-    private String genre;
+    @NotNull(message = "Le genre est obligatoire")
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Genre genre;
 
     @NotBlank(message = "L'adresse est obligatoire")
     @Size(max = 255, message = "L'adresse ne peut pas dépasser 255 caractères")
     @Column(nullable = false)
     private String adresse;
 
-    @Pattern(regexp = "^\\+?[0-9]{8,15}$", message = "Format de téléphone invalide")
-    @Column(length = 20)
+    @NotBlank(message = "Le numéro de téléphone est obligatoire")
+    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Numéro de téléphone invalide")
+    @Column(nullable = false)
     private String telephone;
 
+    @NotBlank(message = "L'email est obligatoire")
     @Email(message = "Format d'email invalide")
-    @Column(length = 100)
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Personne)) return false;
-        Personne personne = (Personne) o;
-        return Objects.equals(id, personne.id);
-    }
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "photo_id")
+    private Media photo;
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
+    @Column(name = "date_creation", nullable = false, updatable = false)
+    private LocalDateTime dateCreation;
+
+    @PrePersist
+    protected void onCreate() {
+        this.dateCreation = LocalDateTime.now();
     }
 }

@@ -1,12 +1,16 @@
 package com.securitesociale.service;
 
 import com.securitesociale.entity.Personne;
-import com.securitesociale.exception.ResourceNotFoundException;
-import com.securitesociale.exception.ValidationException;
+import com.securitesociale.entity.Media;
+import com.securitesociale.repository.AssureRepository;
+import com.securitesociale.repository.MedecinRepository;
 import com.securitesociale.repository.PersonneRepository;
+import com.securitesociale.exception.ResourceNotFoundException;
+import com.securitesociale.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,85 +22,75 @@ public class PersonneService {
     @Autowired
     private PersonneRepository personneRepository;
 
-    /**
-     * Créer une nouvelle personne
-     */
+    @Autowired
+    private AssureRepository assureRepository;
+
+    @Autowired
+    private MedecinRepository medecinRepository;
+
+    @Autowired
+    private MediaService mediaService;
+
     public Personne creerPersonne(Personne personne) {
         if (personne == null) {
-            throw new ValidationException("La personne ne peut pas être nulle");
+            throw new BusinessException("La personne ne peut pas être nulle");
         }
 
         validatePersonne(personne);
 
-        // Vérifier l'unicité de l'email si fourni
         if (personne.getEmail() != null && !personne.getEmail().trim().isEmpty()) {
             Optional<Personne> existante = personneRepository.findByEmail(personne.getEmail());
             if (existante.isPresent()) {
-                throw new ValidationException("Une personne avec cet email existe déjà");
+                throw new BusinessException("Une personne avec cet email existe déjà");
             }
         }
 
         return personneRepository.save(personne);
     }
 
-    /**
-     * Mettre à jour une personne existante
-     */
     public Personne mettreAJourPersonne(Long id, Personne personneModifiee) {
         Personne personneExistante = getPersonneById(id);
 
         validatePersonne(personneModifiee);
 
-        // Vérifier l'unicité de l'email si modifié
         if (personneModifiee.getEmail() != null && !personneModifiee.getEmail().equals(personneExistante.getEmail())) {
             Optional<Personne> autrePersonne = personneRepository.findByEmail(personneModifiee.getEmail());
             if (autrePersonne.isPresent() && !autrePersonne.get().getId().equals(id)) {
-                throw new ValidationException("Une autre personne avec cet email existe déjà");
+                throw new BusinessException("Une autre personne avec cet email existe déjà");
             }
         }
 
-        // Mettre à jour les champs
         personneExistante.setNom(personneModifiee.getNom());
+        personneExistante.setPrenom(personneModifiee.getPrenom());
         personneExistante.setDateNaissance(personneModifiee.getDateNaissance());
         personneExistante.setGenre(personneModifiee.getGenre());
         personneExistante.setAdresse(personneModifiee.getAdresse());
         personneExistante.setTelephone(personneModifiee.getTelephone());
         personneExistante.setEmail(personneModifiee.getEmail());
 
+        // Ne pas modifier photo ici, car géré séparément
         return personneRepository.save(personneExistante);
     }
 
-    /**
-     * Obtenir une personne par ID
-     */
     @Transactional(readOnly = true)
     public Personne getPersonneById(Long id) {
         return personneRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Personne non trouvée avec l'ID: " + id));
     }
 
-    /**
-     * Obtenir toutes les personnes
-     */
     @Transactional(readOnly = true)
     public List<Personne> getAllPersonnes() {
         return personneRepository.findAll();
     }
 
-    /**
-     * Rechercher des personnes par nom
-     */
     @Transactional(readOnly = true)
     public List<Personne> rechercherParNom(String nom) {
         if (nom == null || nom.trim().isEmpty()) {
-            throw new ValidationException("Le nom de recherche ne peut pas être vide");
+            throw new BusinessException("Le nom de recherche ne peut pas être vide");
         }
         return personneRepository.findByNomContainingIgnoreCase(nom.trim());
     }
 
-    /**
-     * Rechercher une personne par email
-     */
     @Transactional(readOnly = true)
     public Optional<Personne> rechercherParEmail(String email) {
         if (email == null || email.trim().isEmpty()) {
@@ -105,82 +99,79 @@ public class PersonneService {
         return personneRepository.findByEmail(email.trim());
     }
 
-    /**
-     * Rechercher des personnes par téléphone
-     */
     @Transactional(readOnly = true)
     public List<Personne> rechercherParTelephone(String telephone) {
         if (telephone == null || telephone.trim().isEmpty()) {
-            throw new ValidationException("Le numéro de téléphone ne peut pas être vide");
+            throw new BusinessException("Le numéro de téléphone ne peut pas être vide");
         }
         return personneRepository.findByTelephoneContaining(telephone.trim());
     }
 
-    /**
-     * Supprimer une personne
-     */
     public void supprimerPersonne(Long id) {
         Personne personne = getPersonneById(id);
 
-        // Vérifier s'il y a des contraintes métier avant suppression
-        // Par exemple, vérifier si la personne est un assuré avec des consultations
-        // ou un médecin avec des consultations en cours
+        if (assureRepository.existsById(id)) {
+            throw new BusinessException("Impossible de supprimer la personne car elle est enregistrée comme assuré");
+        }
+
+        if (medecinRepository.findById(id).isPresent()) {
+            throw new BusinessException("Impossible de supprimer la personne car elle est enregistrée comme médecin");
+        }
+
+        if (personne.getPhoto() != null) {
+            mediaService.deleteMedia(personne.getPhoto().getId());
+        }
 
         personneRepository.delete(personne);
     }
 
-    /**
-     * Vérifier si une personne existe
-     */
     @Transactional(readOnly = true)
     public boolean personneExiste(Long id) {
         return personneRepository.existsById(id);
     }
 
-    /**
-     * Valider les données d'une personne
-     */
+    public Personne uploadPhotoProfil(Long id, MultipartFile file) {
+        Personne personne = getPersonneById(id);
+
+        // Supprimer l'ancienne photo si elle existe
+        if (personne.getPhoto() != null) {
+            mediaService.deleteMedia(personne.getPhoto().getId());
+        }
+
+        // Télécharger la nouvelle photo
+        Media media = mediaService.uploadMedia(file);
+        personne.setPhoto(media);
+
+        return personneRepository.save(personne);
+    }
+
     private void validatePersonne(Personne personne) {
         if (personne.getNom() == null || personne.getNom().trim().isEmpty()) {
-            throw new ValidationException("Le nom est obligatoire");
+            throw new BusinessException("Le nom est obligatoire");
         }
-
+        if (personne.getPrenom() == null || personne.getPrenom().trim().isEmpty()) {
+            throw new BusinessException("Le prénom est obligatoire");
+        }
         if (personne.getDateNaissance() == null) {
-            throw new ValidationException("La date de naissance est obligatoire");
+            throw new BusinessException("La date de naissance est obligatoire");
         }
-
         if (personne.getGenre() == null) {
-            throw new ValidationException("Le genre est obligatoire");
+            throw new BusinessException("Le genre est obligatoire");
         }
-
-        // Validation de l'email si fourni
-        if (personne.getEmail() != null && !personne.getEmail().trim().isEmpty()) {
-            if (!isValidEmail(personne.getEmail())) {
-                throw new ValidationException("Format d'email invalide");
-            }
+        if (personne.getAdresse() == null || personne.getAdresse().trim().isEmpty()) {
+            throw new BusinessException("L'adresse est obligatoire");
         }
-
-        // Validation du téléphone si fourni
-        if (personne.getTelephone() != null && !personne.getTelephone().trim().isEmpty()) {
-            if (!isValidTelephone(personne.getTelephone())) {
-                throw new ValidationException("Format de téléphone invalide");
-            }
+        if (personne.getTelephone() == null || personne.getTelephone().trim().isEmpty()) {
+            throw new BusinessException("Le numéro de téléphone est obligatoire");
         }
-    }
-
-    /**
-     * Valider le format de l'email
-     */
-    private boolean isValidEmail(String email) {
-        return email.matches("^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$");
-    }
-
-    /**
-     * Valider le format du téléphone
-     */
-    private boolean isValidTelephone(String telephone) {
-        // Format simple pour numéros français : 10 chiffres ou format international
-        return telephone.matches("^(?:\\+33|0)[1-9](?:[0-9]{8})$") ||
-                telephone.matches("^\\+?[1-9]\\d{1,14}$");
+        if (!personne.getTelephone().matches("^\\+?[1-9]\\d{1,14}$")) {
+            throw new BusinessException("Format de téléphone invalide");
+        }
+        if (personne.getEmail() == null || personne.getEmail().trim().isEmpty()) {
+            throw new BusinessException("L'email est obligatoire");
+        }
+        if (!personne.getEmail().matches("^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$")) {
+            throw new BusinessException("Format d'email invalide");
+        }
     }
 }

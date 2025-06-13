@@ -2,6 +2,7 @@ package com.securitesociale.controller;
 
 import com.securitesociale.dto.MedecinDTO;
 import com.securitesociale.entity.Medecin;
+import com.securitesociale.entity.enums.Genre;
 import com.securitesociale.service.MedecinService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -167,7 +168,7 @@ public class MedecinController {
                 .personneId(medecin.getId())
                 .nom(medecin.getNom())
                 .dateNaissance(medecin.getDateNaissance())
-                .genre(medecin.getGenre())
+                .genre(String.valueOf(medecin.getGenre()))
                 .adresse(medecin.getAdresse())
                 .telephone(medecin.getTelephone())
                 .email(medecin.getEmail())
@@ -182,7 +183,7 @@ public class MedecinController {
         medecin.setSpecialisation(medecinDTO.getSpecialisation());
         medecin.setNom(medecinDTO.getNom());
         medecin.setDateNaissance(medecinDTO.getDateNaissance());
-        medecin.setGenre(medecinDTO.getGenre());
+        medecin.setGenre(Genre.valueOf(medecinDTO.getGenre()));
         medecin.setAdresse(medecinDTO.getAdresse());
         medecin.setTelephone(medecinDTO.getTelephone());
         medecin.setEmail(medecinDTO.getEmail());

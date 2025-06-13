@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +39,10 @@ public class RemboursementService {
         Consultation consultation = consultationRepository.findById(consultationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Consultation non trouvée avec l'ID: " + consultationId));
 
+        if (consultation.getAssure() == null) {
+            throw new BusinessException("La consultation doit être associée à un assuré");
+        }
+
         // Vérifier qu'il n'y a pas déjà un remboursement pour cette consultation
         Optional<Remboursement> remboursementExistant = remboursementRepository.findByConsultation(consultation);
         if (remboursementExistant.isPresent()) {
@@ -48,16 +53,14 @@ public class RemboursementService {
         remboursement.setConsultation(consultation);
 
         // Calculer le montant du remboursement
-        boolean estGeneraliste = consultation.getMedecin().getSpecialisation() == null;
-        double montant = remboursementCalculator.calculerMontantRemboursement(consultation.getCout(), estGeneraliste);
+        boolean estGeneraliste = consultation.getMedecin().isGeneraliste();
+        BigDecimal montant = remboursementCalculator.calculerMontantRemboursement(consultation.getCout(), estGeneraliste);
         remboursement.setMontant(montant);
 
         // Définir la méthode de paiement
         remboursement.setMethode(methode != null ? methode : consultation.getAssure().getMethodePaiementPreferee());
 
-        // Statut initial
-        remboursement.setStatut(StatutRemboursement.EN_ATTENTE);
-
+        // Statut initial et date de création sont gérés par le constructeur de Remboursement
         return remboursementRepository.save(remboursement);
     }
 
@@ -117,7 +120,7 @@ public class RemboursementService {
     public List<Remboursement> obtenirRemboursementsParAssure(Long assureId) {
         Assure assure = assureRepository.findById(assureId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assuré non trouvé avec l'ID: " + assureId));
-        return remboursementRepository.findByConsultationAssure(assure);
+        return remboursementRepository.findByConsultationAssure(assureId);
     }
 
     /**
@@ -133,7 +136,10 @@ public class RemboursementService {
      */
     @Transactional(readOnly = true)
     public List<Remboursement> obtenirRemboursementsParPeriode(LocalDateTime dateDebut, LocalDateTime dateFin) {
-        return remboursementRepository.findByDateTraitementBetween(dateDebut, dateFin);
+        if (dateDebut.isAfter(dateFin)) {
+            throw new BusinessException("La date de début doit être antérieure à la date de fin");
+        }
+        return remboursementRepository.findByStatutAndDateTraitementBetween(StatutRemboursement.TRAITE, dateDebut, dateFin);
     }
 
     /**
@@ -146,9 +152,7 @@ public class RemboursementService {
             throw new BusinessException("Seuls les remboursements en attente peuvent être traités");
         }
 
-        remboursement.setStatut(StatutRemboursement.TRAITE);
-        remboursement.setDateTraitement(LocalDateTime.now());
-
+        remboursement.traiter();
         return remboursementRepository.save(remboursement);
     }
 
@@ -164,7 +168,7 @@ public class RemboursementService {
 
         remboursement.setStatut(StatutRemboursement.REFUSE);
         remboursement.setDateTraitement(LocalDateTime.now());
-        // Note: Vous pourriez ajouter un champ motif dans l'entité Remboursement
+        // Note : L'entité Remboursement n'a pas de champ pour stocker le motif. Ajouter un champ si nécessaire.
 
         return remboursementRepository.save(remboursement);
     }
@@ -195,6 +199,10 @@ public class RemboursementService {
             throw new BusinessException("Impossible de modifier la méthode de paiement d'un remboursement déjà traité");
         }
 
+        if (nouvelleMethode == null) {
+            throw new BusinessException("La méthode de paiement ne peut pas être nulle");
+        }
+
         remboursement.setMethode(nouvelleMethode);
         return remboursementRepository.save(remboursement);
     }
@@ -210,11 +218,24 @@ public class RemboursementService {
         }
 
         Consultation consultation = remboursement.getConsultation();
-        boolean estGeneraliste = consultation.getMedecin().getSpecialisation() == null;
-        double nouveauMontant = remboursementCalculator.calculerMontantRemboursement(consultation.getCout(), estGeneraliste);
+        boolean estGeneraliste = consultation.getMedecin().isGeneraliste();
+        BigDecimal nouveauMontant = remboursementCalculator.calculerMontantRemboursement(consultation.getCout(), estGeneraliste);
 
         remboursement.setMontant(nouveauMontant);
         return remboursementRepository.save(remboursement);
+    }
+
+    /**
+     * Supprimer un remboursement en attente
+     */
+    public void supprimerRemboursement(Long id) {
+        Remboursement remboursement = obtenirRemboursementParId(id);
+
+        if (remboursement.getStatut() != StatutRemboursement.EN_ATTENTE) {
+            throw new BusinessException("Seuls les remboursements en attente peuvent être supprimés");
+        }
+
+        remboursementRepository.delete(remboursement);
     }
 
     /**
@@ -224,8 +245,7 @@ public class RemboursementService {
         List<Remboursement> remboursementsEnAttente = obtenirRemboursementsEnAttente();
 
         for (Remboursement remboursement : remboursementsEnAttente) {
-            remboursement.setStatut(StatutRemboursement.TRAITE);
-            remboursement.setDateTraitement(LocalDateTime.now());
+            remboursement.traiter();
         }
 
         return remboursementRepository.saveAll(remboursementsEnAttente);
@@ -237,21 +257,21 @@ public class RemboursementService {
     @Transactional(readOnly = true)
     public RemboursementStats obtenirStatistiques() {
         long totalRemboursements = remboursementRepository.count();
-        long remboursmentsEnAttente = remboursementRepository.countByStatut(StatutRemboursement.EN_ATTENTE);
-        long remboursmentsTraites = remboursementRepository.countByStatut(StatutRemboursement.TRAITE);
-        long remboursmentsRefuses = remboursementRepository.countByStatut(StatutRemboursement.REFUSE);
+        long remboursementsEnAttente = remboursementRepository.countByStatut(StatutRemboursement.EN_ATTENTE);
+        long remboursementsTraites = remboursementRepository.countByStatut(StatutRemboursement.TRAITE);
+        long remboursementsRefuses = remboursementRepository.countByStatut(StatutRemboursement.REFUSE);
 
-        Double montantTotalTraite = remboursementRepository.sumMontantByStatut(StatutRemboursement.TRAITE);
-        if (montantTotalTraite == null) montantTotalTraite = 0.0;
+        BigDecimal montantTotalTraite = remboursementRepository.sumMontantByStatut(StatutRemboursement.TRAITE);
+        if (montantTotalTraite == null) montantTotalTraite = BigDecimal.ZERO;
 
-        Double montantTotalEnAttente = remboursementRepository.sumMontantByStatut(StatutRemboursement.EN_ATTENTE);
-        if (montantTotalEnAttente == null) montantTotalEnAttente = 0.0;
+        BigDecimal montantTotalEnAttente = remboursementRepository.sumMontantByStatut(StatutRemboursement.EN_ATTENTE);
+        if (montantTotalEnAttente == null) montantTotalEnAttente = BigDecimal.ZERO;
 
         return new RemboursementStats(
                 totalRemboursements,
-                remboursmentsEnAttente,
-                remboursmentsTraites,
-                remboursmentsRefuses,
+                remboursementsEnAttente,
+                remboursementsTraites,
+                remboursementsRefuses,
                 montantTotalTraite,
                 montantTotalEnAttente
         );
@@ -269,16 +289,16 @@ public class RemboursementService {
 
     // Classe interne pour les statistiques
     public static class RemboursementStats {
-        private long totalRemboursements;
-        private long remboursementsEnAttente;
-        private long remboursementsTraites;
-        private long remboursementsRefuses;
-        private double montantTotalTraite;
-        private double montantTotalEnAttente;
+        private final long totalRemboursements;
+        private final long remboursementsEnAttente;
+        private final long remboursementsTraites;
+        private final long remboursementsRefuses;
+        private final BigDecimal montantTotalTraite;
+        private final BigDecimal montantTotalEnAttente;
 
         public RemboursementStats(long totalRemboursements, long remboursementsEnAttente,
                                   long remboursementsTraites, long remboursementsRefuses,
-                                  double montantTotalTraite, double montantTotalEnAttente) {
+                                  BigDecimal montantTotalTraite, BigDecimal montantTotalEnAttente) {
             this.totalRemboursements = totalRemboursements;
             this.remboursementsEnAttente = remboursementsEnAttente;
             this.remboursementsTraites = remboursementsTraites;
@@ -292,6 +312,7 @@ public class RemboursementService {
         public long getRemboursementsEnAttente() { return remboursementsEnAttente; }
         public long getRemboursementsTraites() { return remboursementsTraites; }
         public long getRemboursementsRefuses() { return remboursementsRefuses; }
-        public double getMontantTotalTraite() { return montantTotalTraite; }
-        public double getMontantTotalEnAttente() { return montantTotalEnAttente; }
+        public BigDecimal getMontantTotalTraite() { return montantTotalTraite; }
+        public BigDecimal getMontantTotalEnAttente() { return montantTotalEnAttente; }
     }
+}

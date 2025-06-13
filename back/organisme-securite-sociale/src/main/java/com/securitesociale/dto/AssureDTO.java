@@ -1,5 +1,6 @@
 package com.securitesociale.dto;
 
+import com.securitesociale.entity.enums.Genre;
 import com.securitesociale.entity.enums.MethodePaiement;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -24,7 +25,7 @@ public class AssureDTO {
 
     @NotNull(message = "Le genre est obligatoire")
     @Pattern(regexp = "^(M|F|AUTRE)$", message = "Le genre doit être M, F ou AUTRE")
-    private String genre;
+    private Genre genre;
 
     @NotBlank(message = "L'adresse est obligatoire")
     @Size(max = 255, message = "L'adresse ne peut pas dépasser 255 caractères")

@@ -3,5 +3,5 @@ public enum TypePrescription {
     MEDICAMENT,
     EXAMEN,
     SOIN,
-    AUTRE
+    CONSULTATION_SPECIALISTE, AUTRE
 }

@@ -16,8 +16,8 @@ public interface PersonneRepository extends JpaRepository<Personne, Long> {
 
     Optional<Personne> findByEmail(String email);
 
-    @Query("SELECT p FROM Personne p WHERE p.telephone = :telephone")
-    Optional<Personne> findByTelephone(@Param("telephone") String telephone);
+    @Query("SELECT p FROM Personne p WHERE p.telephone LIKE CONCAT('%', :telephone, '%')")
+    List<Personne> findByTelephoneContaining(@Param("telephone") String telephone);
 
     @Query("SELECT p FROM Personne p WHERE LOWER(p.nom) LIKE LOWER(CONCAT('%', :nom, '%')) OR LOWER(p.email) LIKE LOWER(CONCAT('%', :nom, '%'))")
     List<Personne> findByNomOrEmail(@Param("nom") String nom);

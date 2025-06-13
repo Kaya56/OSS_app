@@ -38,7 +38,7 @@ public class MedecinService {
                 .orElseThrow(() -> new ResourceNotFoundException("Personne non trouvée avec l'ID: " + medecin.getId()));
 
         // Vérifier que cette personne n'est pas déjà médecin
-        if (medecinRepository.findByPersonneId(personne.getId()).isPresent()) {
+        if (medecinRepository.findById(personne.getId()).isPresent()) {
             throw new BusinessException("Cette personne est déjà enregistrée comme médecin");
         }
         return medecinRepository.save(medecin);
@@ -68,7 +68,7 @@ public class MedecinService {
     public Optional<Medecin> obtenirMedecinParPersonneId(Long personneId) {
         personneRepository.findById(personneId)
                 .orElseThrow(() -> new ResourceNotFoundException("Personne non trouvée avec l'ID: " + personneId));
-        return medecinRepository.findByPersonneId(personneId);
+        return medecinRepository.findById(personneId);
     }
 
     /**

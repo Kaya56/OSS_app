@@ -26,6 +26,5 @@ public interface MedecinRepository extends JpaRepository<Medecin, Long> {
     @Query("SELECT m FROM Medecin m WHERE LOWER(m.specialisation) LIKE LOWER(CONCAT('%', :specialisation, '%'))")
     List<Medecin> findBySpecialisationContaining(@Param("specialisation") String specialisation);
 
-    @Query("SELECT m FROM Medecin m WHERE m.personne.id = :personneId")
-    Optional<Medecin> findByPersonneId(@Param("personneId") Long personneId);
+    Optional<Medecin> findById(Long personneId);
 }
