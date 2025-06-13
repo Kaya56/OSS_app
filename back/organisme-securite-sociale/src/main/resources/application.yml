@@ -1,0 +1,16 @@
+# Configuration principale de l'application 
+spring: 
+  datasource: 
+    url: jdbc:h2:mem:securitesociale 
+    driverClassName: org.h2.Driver 
+    username: sa 
+    password: 
+  jpa: 
+    database-platform: org.hibernate.dialect.H2Dialect 
+    hibernate: 
+      ddl-auto: update 
+  h2: 
+    console: 
+      enabled: true 
+server: 
+  port: 8080 

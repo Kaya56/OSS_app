@@ -1,0 +1,2 @@
+-- Données d'initialisation pour la base de données H2 
+-- TODO: Ajouter des INSERT pour initialiser les données de test 
