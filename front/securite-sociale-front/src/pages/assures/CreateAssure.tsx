@@ -10,7 +10,6 @@ export const CreateAssure: React.FC = () => {
   const navigate = useNavigate();
   const [assure, setAssure] = useState<AssureDTO>({
     nom: '',
-    prenom: '',
     dateNaissance: '',
     genre: Genre.M,
     telephone: '',
@@ -43,7 +42,6 @@ export const CreateAssure: React.FC = () => {
       {error && <div className="text-red-600 mb-4">{error}</div>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input name="nom" label="Nom" value={assure.nom} onChange={handleChange} required />
-        <Input name="prenom" label="Prénom" value={assure.prenom} onChange={handleChange} required />
         <Input name="dateNaissance" label="Date de naissance" type="date" value={assure.dateNaissance} onChange={handleChange} required />
         <select name="genre" value={assure.genre} onChange={handleChange} className="w-full border px-3 py-2 rounded">
           <option value={Genre.M}>Masculin</option>

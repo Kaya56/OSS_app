@@ -19,7 +19,6 @@ export const AssureForm: React.FC<AssureFormProps> = ({
 }) => {
   const [formData, setFormData] = useState<AssureDTO>({
     nom: '',
-    prenom: '',
     dateNaissance: '',
     genre: Genre.M,
     adresse: '',
@@ -60,9 +59,6 @@ export const AssureForm: React.FC<AssureFormProps> = ({
       newErrors.nom = 'Le nom est obligatoire';
     }
 
-    if (!formData.prenom.trim()) {
-      newErrors.prenom = 'Le prénom est obligatoire';
-    }
 
     if (!formData.dateNaissance) {
       newErrors.dateNaissance = 'La date de naissance est obligatoire';
@@ -121,14 +117,7 @@ export const AssureForm: React.FC<AssureFormProps> = ({
             placeholder="Entrez le nom"
           />
 
-          <Input
-            label="Prénom *"
-            name="prenom"
-            value={formData.prenom}
-            onChange={handleChange}
-            error={errors.prenom}
-            placeholder="Entrez le prénom"
-          />
+
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

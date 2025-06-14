@@ -20,7 +20,7 @@ export interface Assure extends Personne {
 export interface AssureDTO {
   id?: number;
   nom: string;
-  prenom: string;
+
   dateNaissance: string;
   genre: Genre;
   adresse: string;
