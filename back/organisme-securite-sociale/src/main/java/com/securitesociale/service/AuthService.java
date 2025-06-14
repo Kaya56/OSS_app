@@ -1,5 +1,6 @@
 package com.securitesociale.service;
 
+import com.securitesociale.controller.AuthController;
 import com.securitesociale.entity.User;
 import com.securitesociale.entity.Personne;
 import com.securitesociale.entity.enums.Role;
@@ -36,44 +37,63 @@ public class AuthService {
     private JwtUtil jwtUtil;
 
     @Transactional
-    public String register(Long personneId, User user) {
-        if (userRepository.existsByUsername(user.getUsername())) {
+    public String register(AuthController.RegisterRequest registerRequest) {
+        if (userRepository.existsByUsername(registerRequest.getUsername())) {
             throw new BusinessException("Nom d'utilisateur déjà utilisé");
         }
 
-        Personne personne = personneRepository.findById(personneId)
-                .orElseThrow(() -> new BusinessException("Personne non trouvée avec l'ID: " + personneId));
+        // Créer une nouvelle personne
+        Personne personne = createPersonne(registerRequest);
+        personne = personneRepository.save(personne);
 
-        if (userRepository.existsByPersonne(personne)) {
-            throw new BusinessException("Cette personne a déjà un compte utilisateur");
-        }
-
-        // Valider les rôles fournis
-        Set<Role> validRoles = new HashSet<>();
-        if (user.getRoles() != null) {
-            for (Role role : user.getRoles()) {
-                if (role == Role.ROLE_ADMIN && personne instanceof com.securitesociale.entity.Assure) {
-                    throw new BusinessException("Un assuré ne peut pas être administrateur");
-                }
-                validRoles.add(role);
-            }
-        }
-
-        // Assigner les rôles en fonction du type de Personne
-        if (personne instanceof com.securitesociale.entity.Assure) {
-            validRoles.add(Role.ROLE_ASSURE);
-        } else if (personne instanceof com.securitesociale.entity.Medecin) {
-            validRoles.add(Role.ROLE_MEDECIN);
-        } else {
-            validRoles.add(Role.ROLE_USER);
-        }
-
-        user.setRoles(validRoles);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        // Créer l'utilisateur
+        User user = new User();
+        user.setUsername(registerRequest.getUsername());
+        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         user.setPersonne(personne);
 
+        // Assigner les rôles en fonction du type de Personne
+        Set<Role> roles = new HashSet<>();
+        if (personne instanceof com.securitesociale.entity.Assure) {
+            roles.add(Role.ROLE_ASSURE);
+        } else if (personne instanceof com.securitesociale.entity.Medecin) {
+            roles.add(Role.ROLE_MEDECIN);
+        } else {
+            roles.add(Role.ROLE_USER);
+        }
+
+        user.setRoles(roles);
         userRepository.save(user);
+
         return jwtUtil.generateToken(user.getUsername(), user.getRoles());
+    }
+
+    private Personne createPersonne(AuthController.RegisterRequest registerRequest) {
+        String typePersonne = registerRequest.getTypePersonne();
+
+        if ("ASSURE".equalsIgnoreCase(typePersonne)) {
+            // Créer un Assuré
+            com.securitesociale.entity.Assure assure = new com.securitesociale.entity.Assure();
+            assure.setNom(registerRequest.getNom());
+            assure.setPrenom(registerRequest.getPrenom());
+            assure.setEmail(registerRequest.getEmail());
+            assure.setTelephone(registerRequest.getTelephone());
+            // Ajouter d'autres propriétés spécifiques à l'Assuré si nécessaire
+            return assure;
+
+        } else if ("MEDECIN".equalsIgnoreCase(typePersonne)) {
+            // Créer un Médecin
+            com.securitesociale.entity.Medecin medecin = new com.securitesociale.entity.Medecin();
+            medecin.setNom(registerRequest.getNom());
+            medecin.setPrenom(registerRequest.getPrenom());
+            medecin.setEmail(registerRequest.getEmail());
+            medecin.setTelephone(registerRequest.getTelephone());
+            // Ajouter d'autres propriétés spécifiques au Médecin si nécessaire
+            return medecin;
+
+        } else {
+            throw new BusinessException("Type de personne invalide: " + typePersonne);
+        }
     }
 
     @Transactional(readOnly = true)
