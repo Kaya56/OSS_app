@@ -64,6 +64,11 @@ const Register: React.FC = () => {
       return;
     }
 
+    console.warn('Form data before submission:', {
+        ...formData,
+        roles: selectedRoles,
+      });
+      
     try {
       await register({
         ...formData,
