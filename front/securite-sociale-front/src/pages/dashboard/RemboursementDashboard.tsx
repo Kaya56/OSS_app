@@ -17,7 +17,7 @@ const mockStats: RemboursementStats = {
   totalRemboursements: 1248,
   montantTotal: 156780.50,
   enAttente: 45,
-  traites: 1156,
+  traites: 56,
   refuses: 47,
   montantMoyenTraite: 125.30
 };

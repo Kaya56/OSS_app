@@ -6,6 +6,8 @@ export interface Consultation {
   medecinId: number;
   cout: number;
   detailsMedical?: string;
+  statut?: StatutConsultation;
+  motif?: string;
   prescriptions?: Prescription[];
   remboursement?: Remboursement;
 }
@@ -17,6 +19,8 @@ export interface ConsultationDTO {
   medecinId: number;
   cout: number;
   detailsMedical?: string;
+  statut?: StatutConsultation;
+  motif?: string;
 }
 
 export interface ConsultationWithDetails extends Consultation {
@@ -47,6 +51,7 @@ export interface ConsultationFilters {
   dateDebut?: string;
   dateFin?: string;
   typeConsultation?: 'generaliste' | 'specialiste' | 'all';
+  statut?: StatutConsultation;
 }
 
 export interface CreateConsultationRequest {
@@ -55,12 +60,15 @@ export interface CreateConsultationRequest {
   cout: number;
   date: string;
   detailsMedical?: string;
+  motif?: string;
   prescriptions?: CreatePrescriptionRequest[];
 }
 
 export interface UpdateConsultationRequest {
   cout?: number;
   detailsMedical?: string;
+  statut?: StatutConsultation;
+  motif?: string;
 }
 
 export interface CreatePrescriptionRequest {
@@ -70,11 +78,20 @@ export interface CreatePrescriptionRequest {
 }
 
 // Types pour les enums
+export const StatutConsultation = {
+  PROGRAMMEE: 'PROGRAMMEE',
+  EN_COURS: 'EN_COURS',
+  TERMINE: 'TERMINE',
+  ANNULEE: 'ANNULEE'
+} as const;
+
+export type StatutConsultation = (typeof StatutConsultation)[keyof typeof StatutConsultation];
+
 export const StatutRemboursement = {
   EN_ATTENTE: 'EN_ATTENTE',
   TRAITE: 'TRAITE',
   REFUSE: 'REFUSE'
-}
+} as const;
 
 export type StatutRemboursement = (typeof StatutRemboursement)[keyof typeof StatutRemboursement];
 

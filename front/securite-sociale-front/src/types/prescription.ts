@@ -10,6 +10,7 @@ export const TypePrescription =  {
 export type TypePrescription = (typeof TypePrescription)[keyof typeof TypePrescription];
 
 export interface Prescription {
+  medecinId: number;
   id?: number;
   consultationId: number;
   type: TypePrescription;

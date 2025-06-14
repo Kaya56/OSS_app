@@ -12,7 +12,7 @@ import type{
 } from '../types/consultation';
 
 export class ConsultationService {
-  private baseUrl = '/api/consultations';
+  private baseUrl = '/consultations';
 
   // Créer une nouvelle consultation
   async createConsultation(consultation: CreateConsultationRequest): Promise<ConsultationDTO> {

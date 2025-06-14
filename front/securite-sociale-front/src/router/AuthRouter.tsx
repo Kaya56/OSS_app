@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Role } from '../types/auth';
 import { getDefaultDashboardPath } from '../utils/authUtils';
+import ConsultationListContainer from '../components/consultations/ConsultationListContainer';
 
 // Pages publiques
 import Home from '../pages/Home';
@@ -13,10 +14,10 @@ import NotFound from '../pages/NotFound';
 
 // Pages protégées - Dashboards
 import ProtectedRoute from '../components/layout/ProtectedRoute';
-// import AdminDashboard from '../pages/dashboard/AdminDashboard';
+import AdminDashboard from '../pages/dashboard/AdminDashboard';
 import AssureDashboard from '../pages/dashboard/AssureDashboard';
-// import MedecinDashboard from '../pages/dashboard/MedecinDashboard';
-// import UserDashboard from '../pages/dashboard/UserDashboard';
+import MedecinDashboard from '../pages/dashboard/MedecinDashboard';
+import UserDashboard from '../pages/dashboard/UserDashboard';
 import RemboursementDashboard from '../pages/dashboard/RemboursementDashboard';
 
 // Pages Assurés
@@ -96,7 +97,7 @@ const AuthRouter: React.FC = () => {
       />
 
       {/* Dashboards spécifiques par rôle */}
-      {/* <Route
+      <Route
         path="/admin/dashboard"
         element={
           <ProtectedRoute requiredRoles={[Role.ROLE_ADMIN]}>
@@ -112,7 +113,7 @@ const AuthRouter: React.FC = () => {
             <MedecinDashboard />
           </ProtectedRoute>
         }
-      /> */}
+      />
 
       <Route
         path="/assure/dashboard"
@@ -122,7 +123,7 @@ const AuthRouter: React.FC = () => {
           </ProtectedRoute>
         }
       />
-{/* 
+
       <Route
         path="/user/dashboard"
         element={
@@ -130,7 +131,7 @@ const AuthRouter: React.FC = () => {
             <UserDashboard />
           </ProtectedRoute>
         }
-      /> */}
+      />
 
       <Route
         path="/remboursement/dashboard"
@@ -202,14 +203,14 @@ const AuthRouter: React.FC = () => {
       />
 
       {/* Routes pour les consultations */}
-      {/* <Route
+      <Route
         path="/consultations"
         element={
-          <ProtectedRoute requiredRoles={[Role.ROLE_MEDECIN, Role.ROLE_ASSURE, Role.ROLE_ADMIN]}>
-            <ConsultationList />
-          </ProtectedRoute>
+            <ProtectedRoute requiredRoles={[Role.ROLE_MEDECIN, Role.ROLE_ASSURE, Role.ROLE_ADMIN]}>
+            <ConsultationListContainer />
+            </ProtectedRoute>
         }
-      /> */}
+      />
       <Route
         path="/consultations/new"
         element={
